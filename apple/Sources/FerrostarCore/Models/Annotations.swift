@@ -7,6 +7,8 @@ public struct ValhallaOsrmAnnotation: Decodable {
         case speed
         case distance
         case duration
+        case congestion
+        case congestionNumeric = "congestion_numeric"
     }
 
     /// The speed limit for the current line segment.
@@ -17,4 +19,8 @@ public struct ValhallaOsrmAnnotation: Decodable {
     public let distance: Double?
 
     public let duration: Double?
+    
+    public let congestion: String?
+    
+    public let congestionNumeric: Int?
 }
