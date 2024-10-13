@@ -78,6 +78,7 @@ struct DemoNavigationView: View {
                 styleURL: style,
                 camera: $camera,
                 navigationState: ferrostarCore.state,
+                calculateSpeedLimit: getSpeedLimit,
                 onTapExit: { stopNavigation() },
                 makeMapContent: {
                     let source = ShapeSource(identifier: "userLocation") {
@@ -149,6 +150,7 @@ struct DemoNavigationView: View {
             .task {
                 await getRoutes()                
             }
+            .environment(\.navigationFormatterCollection, <#T##value: V##V#>)
         }
     }
 
@@ -219,6 +221,13 @@ struct DemoNavigationView: View {
 
         
         return "±\(Int(userLocation.horizontalAccuracy))m accuracy"
+    }
+
+    func getSpeedLimit(_ navigationState: NavigationState?) -> Measurement<UnitSpeed>? {
+        guard let annotation = try? navigationState?.currentAnnotation(as: ValhallaOsrmAnnotation.self) else {
+            return nil
+        }
+        return annotation.speedLimit?.measurementValue
     }
 
     private func preventAutoLock() {

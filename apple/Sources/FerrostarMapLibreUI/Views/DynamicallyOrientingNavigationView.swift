@@ -25,7 +25,10 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
     public var topTrailing: (() -> AnyView)?
     public var midLeading: (() -> AnyView)?
     public var bottomTrailing: (() -> AnyView)?
-    
+
+    var calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)?
+    @State var speedLimit: Measurement<UnitSpeed>?
+
     var onTapExit: (() -> Void)?
 
     public var minimumSafeAreaInsets: EdgeInsets
@@ -53,6 +56,7 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
         navigationCamera: MapViewCamera = .automotiveNavigation()
         ,
         navigationState: NavigationState?,
+        calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: @escaping () -> [StyleLayerDefinition] = { [] },
@@ -62,6 +66,7 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
     ) {
         self.styleURL = styleURL
         self.navigationState = navigationState
+        self.calculateSpeedLimit = calculateSpeedLimit
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
         self.onTapExit = onTapExit
 
@@ -97,8 +102,8 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
                 case .landscapeLeft, .landscapeRight:
                     LandscapeNavigationOverlayView(
                         navigationState: navigationState,
-                        speedLimit: nil,
-                        showZoom: navigationState?.isNavigating == true,
+                        speedLimit: speedLimit,
+                        showZoom: true,
                         onZoomIn: { camera.incrementZoom(by: 1) },
                         onZoomOut: { camera.incrementZoom(by: -1) },
                         showCentering: !camera.isTrackingUserLocationWithCourse,
@@ -117,8 +122,8 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
                 default:
                     PortraitNavigationOverlayView(
                         navigationState: navigationState,
-                        speedLimit: nil,
-                        showZoom: navigationState?.isNavigating == true,
+                        speedLimit: speedLimit,
+                        showZoom: true,
                         onZoomIn: { camera.incrementZoom(by: 1) },
                         onZoomOut: { camera.incrementZoom(by: -1) },
                         showCentering: !camera.isTrackingUserLocationWithCourse,
@@ -141,6 +146,9 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
             NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)
         ) { _ in
             orientation = UIDevice.current.orientation
+        }
+        .onChange(of: navigationState) { value in
+            speedLimit = calculateSpeedLimit?(value)
         }
     }
 }
