@@ -18,16 +18,22 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
     var mapViewContentInset: UIEdgeInsets = .zero
     var onStyleLoaded: (MLNStyle) -> Void
     let userLayers: [StyleLayerDefinition]
+    
+    let mapViewModifiers: (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController>
 
     // TODO: Configurable camera and user "puck" rotation modes
 
-    private var navigationState: NavigationState?
+    private var navigationState: NavigationState? 
 
     @State private var locationManager = StaticLocationManager(initialLocation: CLLocation())
 
     // MARK: Camera Settings
 
     @Binding var camera: MapViewCamera
+    
+    private var effectiveMapViewContentInset: UIEdgeInsets {
+        return navigationState?.isNavigating == true ? mapViewContentInset : .zero
+    }
 
     /// Initialize a map view tuned for turn by turn navigation.
     ///
@@ -37,22 +43,31 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
     ///   - navigationState: The current ferrostar navigation state provided by ferrostar core.
     ///   - onStyleLoaded: The map's style has loaded and the camera can be manipulated (e.g. to user tracking).
     ///   - makeMapContent: Custom maplibre symbols to display on the map view.
+    ///   - mapViewModifiers: An optional closure that allows you to apply custom view and map modifiers to the `MapView`. The closure
+    ///     takes the `MapView` instance and provides a Boolean indicating if navigation is active, and returns an `AnyView`. Use this to attach onMapTapGesture and other view modifiers to the underlying MapView and customize when the modifiers are applied using
+    ///       the isNavigating modifier.
+    ///     By default, it returns the unmodified `MapView`.
     public init(
         makeViewController: @autoclosure @escaping () -> T,
         styleURL: URL,
         camera: Binding<MapViewCamera>,
         navigationState: NavigationState?,
         onStyleLoaded: @escaping ((MLNStyle) -> Void),
-        @MapViewContentBuilder _ makeMapContent: () -> [StyleLayerDefinition] = { [] }
+        @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] },
+        mapViewModifiers: @escaping (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController> = { transferView, _ in
+            transferView
+        }
     ) {
         self.makeViewController = makeViewController
         self.styleURL = styleURL
         _camera = camera
         self.navigationState = navigationState
         self.onStyleLoaded = onStyleLoaded
-        userLayers = makeMapContent()
+        self.userLayers = makeMapContent()
+        self.mapViewModifiers = mapViewModifiers
     }
 
+    @ViewBuilder
     public var body: some View {
         MapView(
             makeViewController: makeViewController(),
@@ -78,11 +93,12 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
             // Overlay any additional user layers.
             userLayers
         }
-        .mapViewContentInset(mapViewContentInset)
+        .mapViewContentInset(effectiveMapViewContentInset)
         .mapControls {
             // No controls
         }
         .onStyleLoaded(onStyleLoaded)
+        .applyTransform(transform: mapViewModifiers, isNavigating: navigationState?.isNavigating == true)
         .ignoresSafeArea(.all)
     }
 
@@ -97,6 +113,15 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
         }
     }
 }
+
+extension MapView<MLNMapViewController> {
+    @ViewBuilder
+    func applyTransform<Content: View>(
+        transform: (MapView<MLNMapViewController>, Bool) -> Content, isNavigating: Bool) -> some View {
+        transform(self, isNavigating)
+    }
+}
+
 
 #Preview("Navigation Map View") {
     // TODO: Make map URL configurable but gitignored

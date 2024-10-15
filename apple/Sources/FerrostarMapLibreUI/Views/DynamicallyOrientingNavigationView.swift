@@ -18,12 +18,17 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
     let makeViewController: () -> T
 
     private var navigationState: NavigationState?
-    private let userLayers: [StyleLayerDefinition]
+    private let userLayers: () -> [StyleLayerDefinition]
+    
+    private let mapViewModifiers: (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController>
 
     public var topCenter: (() -> AnyView)?
     public var topTrailing: (() -> AnyView)?
     public var midLeading: (() -> AnyView)?
     public var bottomTrailing: (() -> AnyView)?
+
+    var calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)?
+    @State var speedLimit: Measurement<UnitSpeed>?
 
     var onTapExit: (() -> Void)?
 
@@ -41,27 +46,38 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
     ///   - minimumSafeAreaInsets: The minimum padding to apply from safe edges. See `complementSafeAreaInsets`.
     ///   - onTapExit: An optional behavior to run when the ArrivalView exit button is tapped. When nil (default) the
     /// exit button is hidden.
-    ///   - makeMapContent: Custom maplibre symbols to display on the map view.
+    ///   - makeMapContent: Custom maplibre layers to display on the map view.
+    ///   - mapViewModifiers: An optional closure that allows you to apply custom view and map modifiers to the `MapView`. The closure
+    ///     takes the `MapView` instance and provides a Boolean indicating if navigation is active, and returns an `AnyView`. Use this to attach onMapTapGesture and other view modifiers to the underlying MapView and customize when the modifiers are applied using
+    ///       the isNavigating modifier.
+    ///     By default, it returns the unmodified `MapView`.
     public init(
         makeViewController: @autoclosure @escaping () -> T,
         styleURL: URL,
         camera: Binding<MapViewCamera>,
-        navigationCamera: MapViewCamera = .automotiveNavigation(),
+        navigationCamera: MapViewCamera = .automotiveNavigation()
+        ,
         navigationState: NavigationState?,
+        calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
         onTapExit: (() -> Void)? = nil,
-        @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] }
+        @MapViewContentBuilder makeMapContent: @escaping () -> [StyleLayerDefinition] = { [] },
+        mapViewModifiers: @escaping (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController> = { transferView, _ in
+            transferView
+        }
     ) {
         self.makeViewController = makeViewController
         self.styleURL = styleURL
         self.navigationState = navigationState
+        self.calculateSpeedLimit = calculateSpeedLimit
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
         self.onTapExit = onTapExit
 
-        userLayers = makeMapContent()
+        userLayers = makeMapContent
 
         _camera = camera
         self.navigationCamera = navigationCamera
+        self.mapViewModifiers = mapViewModifiers
     }
 
     public var body: some View {
@@ -72,11 +88,14 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
                     camera: $camera,
                     navigationState: navigationState,
                     onStyleLoaded: { _ in
-                        camera = navigationCamera
-                    }
-                ) {
-                    userLayers
-                }
+                        if navigationState?.isNavigating == true {
+                            camera = navigationCamera
+                        }
+                        
+                    },
+                    makeMapContent: userLayers,
+                    mapViewModifiers: mapViewModifiers)
+                
                 .navigationMapViewContentInset(NavigationMapViewContentInsetMode(
                     orientation: orientation,
                     geometry: geometry
@@ -86,7 +105,7 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
                 case .landscapeLeft, .landscapeRight:
                     LandscapeNavigationOverlayView(
                         navigationState: navigationState,
-                        speedLimit: nil,
+                        speedLimit: speedLimit,
                         showZoom: true,
                         onZoomIn: { camera.incrementZoom(by: 1) },
                         onZoomOut: { camera.incrementZoom(by: -1) },
@@ -106,7 +125,7 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
                 default:
                     PortraitNavigationOverlayView(
                         navigationState: navigationState,
-                        speedLimit: nil,
+                        speedLimit: speedLimit,
                         showZoom: true,
                         onZoomIn: { camera.incrementZoom(by: 1) },
                         onZoomOut: { camera.incrementZoom(by: -1) },
@@ -130,6 +149,9 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
             NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)
         ) { _ in
             orientation = UIDevice.current.orientation
+        }
+        .onChange(of: navigationState) { value in
+            speedLimit = calculateSpeedLimit?(value)
         }
     }
 }

@@ -24,6 +24,9 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
     public var midLeading: (() -> AnyView)?
     public var bottomTrailing: (() -> AnyView)?
 
+    var calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)?
+    @State var speedLimit: Measurement<UnitSpeed>?
+
     var onTapExit: (() -> Void)?
 
     public var minimumSafeAreaInsets: EdgeInsets
@@ -48,6 +51,7 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
         camera: Binding<MapViewCamera>,
         navigationCamera: MapViewCamera = .automotiveNavigation(),
         navigationState: NavigationState?,
+        calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] }
@@ -55,6 +59,7 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
         self.makeViewController = makeViewController
         self.styleURL = styleURL
         self.navigationState = navigationState
+        self.calculateSpeedLimit = calculateSpeedLimit
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
         self.onTapExit = onTapExit
 
@@ -80,7 +85,7 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
 
                 LandscapeNavigationOverlayView(
                     navigationState: navigationState,
-                    speedLimit: nil,
+                    speedLimit: speedLimit,
                     showZoom: true,
                     onZoomIn: { camera.incrementZoom(by: 1) },
                     onZoomOut: { camera.incrementZoom(by: -1) },
@@ -98,6 +103,9 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
                     bottomTrailing?()
                 }.complementSafeAreaInsets(parentGeometry: geometry, minimumInsets: minimumSafeAreaInsets)
             }
+        }
+        .onChange(of: navigationState) { value in
+            speedLimit = calculateSpeedLimit?(value)
         }
     }
 }
