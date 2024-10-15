@@ -20,12 +20,13 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
     private var navigationState: NavigationState?
     private let userLayers: () -> [StyleLayerDefinition]
     
-    private let mapViewModifiers: (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController>
+    private let mapViewModifiers: (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T>
 
     public var topCenter: (() -> AnyView)?
     public var topTrailing: (() -> AnyView)?
     public var midLeading: (() -> AnyView)?
     public var bottomTrailing: (() -> AnyView)?
+    public var bottomLeading: (() -> AnyView)?
 
     var calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)?
     @State var speedLimit: Measurement<UnitSpeed>?
@@ -62,7 +63,7 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: @escaping () -> [StyleLayerDefinition] = { [] },
-        mapViewModifiers: @escaping (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController> = { transferView, _ in
+        mapViewModifiers: @escaping (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T> = { transferView, _ in
             transferView
         }
     ) {
@@ -84,6 +85,7 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
         GeometryReader { geometry in
             ZStack {
                 NavigationMapView(
+                    makeViewController: makeViewController(),
                     styleURL: styleURL,
                     camera: $camera,
                     navigationState: navigationState,
@@ -121,6 +123,8 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
                         midLeading?()
                     } bottomTrailing: {
                         bottomTrailing?()
+                    } bottomLeading: {
+                        bottomLeading?()
                     }.complementSafeAreaInsets(parentGeometry: geometry, minimumInsets: minimumSafeAreaInsets)
                 default:
                     PortraitNavigationOverlayView(
@@ -141,6 +145,8 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
                         midLeading?()
                     } bottomTrailing: {
                         bottomTrailing?()
+                    } bottomLeading: {
+                        bottomLeading?()
                     }.complementSafeAreaInsets(parentGeometry: geometry, minimumInsets: minimumSafeAreaInsets)
                 }
             }
@@ -203,7 +209,10 @@ extension DynamicallyOrientingNavigationView where T == MLNMapViewController {
         navigationState: NavigationState?,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
         onTapExit: (() -> Void)? = nil,
-        @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] }
+        @MapViewContentBuilder makeMapContent: @escaping () -> [StyleLayerDefinition] = { [] },
+        mapViewModifiers: @escaping (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T> = { transferView, _ in
+            transferView
+        }
     ) {
         self.makeViewController = MLNMapViewController.init
         self.styleURL = styleURL
@@ -211,9 +220,10 @@ extension DynamicallyOrientingNavigationView where T == MLNMapViewController {
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
         self.onTapExit = onTapExit
 
-        userLayers = makeMapContent()
+        userLayers = makeMapContent
 
         _camera = camera
         self.navigationCamera = navigationCamera
+        self.mapViewModifiers = mapViewModifiers
     }
 }

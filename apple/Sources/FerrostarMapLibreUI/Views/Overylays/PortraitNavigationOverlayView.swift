@@ -18,6 +18,7 @@ struct PortraitNavigationOverlayView: View, CustomizableNavigatingInnerGridView 
     var topTrailing: (() -> AnyView)?
     var midLeading: (() -> AnyView)?
     var bottomTrailing: (() -> AnyView)?
+    var bottomLeading: (() -> AnyView)?
 
     var speedLimit: Measurement<UnitSpeed>?
     var showZoom: Bool
@@ -72,6 +73,8 @@ struct PortraitNavigationOverlayView: View, CustomizableNavigatingInnerGridView 
                     midLeading?()
                 } bottomTrailing: {
                     bottomTrailing?()
+                } bottomLeading: {
+                    bottomLeading?()
                 }
 
                 if case .navigating = navigationState?.tripState,

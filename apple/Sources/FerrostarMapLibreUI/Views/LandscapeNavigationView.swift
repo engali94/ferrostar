@@ -23,6 +23,7 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
     public var topTrailing: (() -> AnyView)?
     public var midLeading: (() -> AnyView)?
     public var bottomTrailing: (() -> AnyView)?
+    public var bottomLeading: (() -> AnyView)?
 
     var calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)?
     @State var speedLimit: Measurement<UnitSpeed>?
@@ -72,6 +73,7 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
         GeometryReader { geometry in
             ZStack {
                 NavigationMapView(
+                    makeViewController: makeViewController(),
                     styleURL: styleURL,
                     camera: $camera,
                     navigationState: navigationState,
@@ -101,6 +103,8 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
                     midLeading?()
                 } bottomTrailing: {
                     bottomTrailing?()
+                } bottomLeading: {
+                    bottomLeading?()
                 }.complementSafeAreaInsets(parentGeometry: geometry, minimumInsets: minimumSafeAreaInsets)
             }
         }

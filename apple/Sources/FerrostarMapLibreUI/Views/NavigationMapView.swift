@@ -19,7 +19,7 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
     var onStyleLoaded: (MLNStyle) -> Void
     let userLayers: [StyleLayerDefinition]
     
-    let mapViewModifiers: (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController>
+    let mapViewModifiers: (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T>
 
     // TODO: Configurable camera and user "puck" rotation modes
 
@@ -54,7 +54,7 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
         navigationState: NavigationState?,
         onStyleLoaded: @escaping ((MLNStyle) -> Void),
         @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] },
-        mapViewModifiers: @escaping (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController> = { transferView, _ in
+        mapViewModifiers: @escaping (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T> = { transferView, _ in
             transferView
         }
     ) {
@@ -114,10 +114,10 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
     }
 }
 
-extension MapView<MLNMapViewController> {
+extension MapView {
     @ViewBuilder
     func applyTransform<Content: View>(
-        transform: (MapView<MLNMapViewController>, Bool) -> Content, isNavigating: Bool) -> some View {
+        transform: (Self, Bool) -> Content, isNavigating: Bool) -> some View {
         transform(self, isNavigating)
     }
 }
@@ -153,7 +153,10 @@ extension NavigationMapView where T == MLNMapViewController {
         camera: Binding<MapViewCamera>,
         navigationState: NavigationState?,
         onStyleLoaded: @escaping ((MLNStyle) -> Void),
-        @MapViewContentBuilder _ makeMapContent: () -> [StyleLayerDefinition] = { [] }
+        @MapViewContentBuilder _ makeMapContent: () -> [StyleLayerDefinition] = { [] },
+        mapViewModifiers: @escaping (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T> = { transferView, _ in
+            transferView
+        }
     ) {
         self.makeViewController = MLNMapViewController.init
         self.styleURL = styleURL
@@ -161,5 +164,6 @@ extension NavigationMapView where T == MLNMapViewController {
         self.navigationState = navigationState
         self.onStyleLoaded = onStyleLoaded
         userLayers = makeMapContent()
+        self.mapViewModifiers = mapViewModifiers
     }
 }
