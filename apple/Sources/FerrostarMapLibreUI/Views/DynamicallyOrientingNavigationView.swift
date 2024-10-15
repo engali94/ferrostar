@@ -7,7 +7,7 @@ import MapLibreSwiftUI
 import SwiftUI
 
 /// A navigation view that dynamically switches between portrait and landscape orientations.
-public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingInnerGridView {
+public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: View, CustomizableNavigatingInnerGridView {
     @Environment(\.navigationFormatterCollection) var formatterCollection: any FormatterCollection
 
     @State private var orientation = UIDevice.current.orientation
@@ -15,6 +15,7 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
     let styleURL: URL
     @Binding var camera: MapViewCamera
     let navigationCamera: MapViewCamera
+    let makeViewController: () -> T
 
     private var navigationState: NavigationState?
     private let userLayers: [StyleLayerDefinition]
@@ -42,6 +43,7 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
     /// exit button is hidden.
     ///   - makeMapContent: Custom maplibre symbols to display on the map view.
     public init(
+        makeViewController: @autoclosure @escaping () -> T,
         styleURL: URL,
         camera: Binding<MapViewCamera>,
         navigationCamera: MapViewCamera = .automotiveNavigation(),
@@ -50,6 +52,7 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] }
     ) {
+        self.makeViewController = makeViewController
         self.styleURL = styleURL
         self.navigationState = navigationState
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
@@ -168,4 +171,27 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
         navigationState: state
     )
     .navigationFormatterCollection(FoundationFormatterCollection(distanceFormatter: formatter))
+}
+
+extension DynamicallyOrientingNavigationView where T == MLNMapViewController {
+    public init(
+        styleURL: URL,
+        camera: Binding<MapViewCamera>,
+        navigationCamera: MapViewCamera = .automotiveNavigation(),
+        navigationState: NavigationState?,
+        minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
+        onTapExit: (() -> Void)? = nil,
+        @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] }
+    ) {
+        self.makeViewController = MLNMapViewController.init
+        self.styleURL = styleURL
+        self.navigationState = navigationState
+        self.minimumSafeAreaInsets = minimumSafeAreaInsets
+        self.onTapExit = onTapExit
+
+        userLayers = makeMapContent()
+
+        _camera = camera
+        self.navigationCamera = navigationCamera
+    }
 }

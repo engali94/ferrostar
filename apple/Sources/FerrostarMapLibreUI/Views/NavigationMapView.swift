@@ -12,7 +12,8 @@ import SwiftUI
 /// It does not include other UI elements like instruction banners.
 /// This is the basis of higher level views like
 /// ``DynamicallyOrientingNavigationView``.
-public struct NavigationMapView: View {
+public struct NavigationMapView<T: MapViewHostViewController>: View {
+    let makeViewController: () -> T
     let styleURL: URL
     var mapViewContentInset: UIEdgeInsets = .zero
     var onStyleLoaded: (MLNStyle) -> Void
@@ -37,12 +38,14 @@ public struct NavigationMapView: View {
     ///   - onStyleLoaded: The map's style has loaded and the camera can be manipulated (e.g. to user tracking).
     ///   - makeMapContent: Custom maplibre symbols to display on the map view.
     public init(
+        makeViewController: @autoclosure @escaping () -> T,
         styleURL: URL,
         camera: Binding<MapViewCamera>,
         navigationState: NavigationState?,
         onStyleLoaded: @escaping ((MLNStyle) -> Void),
         @MapViewContentBuilder _ makeMapContent: () -> [StyleLayerDefinition] = { [] }
     ) {
+        self.makeViewController = makeViewController
         self.styleURL = styleURL
         _camera = camera
         self.navigationState = navigationState
@@ -52,6 +55,7 @@ public struct NavigationMapView: View {
 
     public var body: some View {
         MapView(
+            makeViewController: makeViewController(),
             styleURL: styleURL,
             camera: $camera,
             locationManager: locationManager
@@ -108,4 +112,29 @@ public struct NavigationMapView: View {
         navigationState: state,
         onStyleLoaded: { _ in }
     )
+}
+
+extension NavigationMapView where T == MLNMapViewController {
+    /// Initialize a map view tuned for turn by turn navigation.
+    ///
+    /// - Parameters:
+    ///   - styleURL: The map's style url.
+    ///   - camera: The camera binding that represents the current camera on the map.
+    ///   - navigationState: The current ferrostar navigation state provided by ferrostar core.
+    ///   - onStyleLoaded: The map's style has loaded and the camera can be manipulated (e.g. to user tracking).
+    ///   - makeMapContent: Custom maplibre symbols to display on the map view.
+    public init(
+        styleURL: URL,
+        camera: Binding<MapViewCamera>,
+        navigationState: NavigationState?,
+        onStyleLoaded: @escaping ((MLNStyle) -> Void),
+        @MapViewContentBuilder _ makeMapContent: () -> [StyleLayerDefinition] = { [] }
+    ) {
+        self.makeViewController = MLNMapViewController.init
+        self.styleURL = styleURL
+        _camera = camera
+        self.navigationState = navigationState
+        self.onStyleLoaded = onStyleLoaded
+        userLayers = makeMapContent()
+    }
 }
