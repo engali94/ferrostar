@@ -206,7 +206,7 @@ pub fn advance_location_simulation(state: &LocationSimulationState) -> LocationS
             horizontal_accuracy: 10.0,
             course_over_ground: Some(CourseOverGround {
                 degrees: bearing,
-                accuracy: Some(5.0),
+                accuracy: Some(5),
             }),
             timestamp: SystemTime::now(),
             speed: None,
