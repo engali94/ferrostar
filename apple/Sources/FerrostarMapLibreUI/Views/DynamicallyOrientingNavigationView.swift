@@ -14,6 +14,7 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
 
     let styleURL: URL
     @Binding var camera: MapViewCamera
+    let showZoom: Bool
     let navigationCamera: MapViewCamera
     let makeViewController: () -> T
 
@@ -61,12 +62,14 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
         navigationState: NavigationState?,
         calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
+        showZoom: Bool,
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: @escaping () -> [StyleLayerDefinition] = { [] },
         mapViewModifiers: @escaping (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T> = { transferView, _ in
             transferView
         }
     ) {
+        self.showZoom = showZoom
         self.makeViewController = makeViewController
         self.styleURL = styleURL
         self.navigationState = navigationState
@@ -108,7 +111,7 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
                     LandscapeNavigationOverlayView(
                         navigationState: navigationState,
                         speedLimit: speedLimit,
-                        showZoom: true,
+                        showZoom: showZoom,
                         onZoomIn: { camera.incrementZoom(by: 1) },
                         onZoomOut: { camera.incrementZoom(by: -1) },
                         showCentering: !camera.isTrackingUserLocationWithCourse,
@@ -130,7 +133,7 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
                     PortraitNavigationOverlayView(
                         navigationState: navigationState,
                         speedLimit: speedLimit,
-                        showZoom: true,
+                        showZoom: showZoom,
                         onZoomIn: { camera.incrementZoom(by: 1) },
                         onZoomOut: { camera.incrementZoom(by: -1) },
                         showCentering: !camera.isTrackingUserLocationWithCourse,
@@ -177,7 +180,8 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
     return DynamicallyOrientingNavigationView(
         styleURL: URL(string: "https://demotiles.maplibre.org/style.json")!,
         camera: .constant(.center(userLocation.clLocation.coordinate, zoom: 12)),
-        navigationState: state
+        navigationState: state,
+        showZoom: true
     )
     .navigationFormatterCollection(FoundationFormatterCollection(distanceFormatter: formatter))
 }
@@ -196,7 +200,8 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
     return DynamicallyOrientingNavigationView(
         styleURL: URL(string: "https://demotiles.maplibre.org/style.json")!,
         camera: .constant(.center(userLocation.clLocation.coordinate, zoom: 12)),
-        navigationState: state
+        navigationState: state,
+        showZoom: true
     )
     .navigationFormatterCollection(FoundationFormatterCollection(distanceFormatter: formatter))
 }
@@ -208,6 +213,7 @@ extension DynamicallyOrientingNavigationView where T == MLNMapViewController {
         navigationCamera: MapViewCamera = .automotiveNavigation(),
         navigationState: NavigationState?,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
+        showZoom: Bool,
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: @escaping () -> [StyleLayerDefinition] = { [] },
         mapViewModifiers: @escaping (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T> = { transferView, _ in
@@ -218,6 +224,7 @@ extension DynamicallyOrientingNavigationView where T == MLNMapViewController {
         self.styleURL = styleURL
         self.navigationState = navigationState
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
+        self.showZoom = showZoom
         self.onTapExit = onTapExit
 
         userLayers = makeMapContent
