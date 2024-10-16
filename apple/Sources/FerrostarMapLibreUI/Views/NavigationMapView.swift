@@ -19,7 +19,7 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
     var onStyleLoaded: (MLNStyle) -> Void
     let userLayers: [StyleLayerDefinition]
     
-    let mapViewModifiers: (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController>
+    let mapViewModifiers: (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T>
     
     // TODO: Configurable camera and user "puck" rotation modes
     
@@ -123,7 +123,7 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
 extension MapView {
     @ViewBuilder
     func applyTransform<Content: View>(
-        transform: (MapView<MLNMapViewController>, Bool) -> Content, isNavigating: Bool) -> some View {
+        transform: (Self, Bool) -> Content, isNavigating: Bool) -> some View {
             transform(self, isNavigating)
         }
 }

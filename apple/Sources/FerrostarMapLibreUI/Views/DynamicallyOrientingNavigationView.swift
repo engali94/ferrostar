@@ -166,3 +166,52 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
         }
     }
 }
+
+extension DynamicallyOrientingNavigationView where T == MLNMapViewController {
+    /// Create a dynamically orienting navigation view. This view automatically arranges child views for both portait
+    /// and landscape orientations.
+    ///
+    /// - Parameters:
+    ///   - styleURL: The map's style url.
+    ///   - camera: The camera binding that represents the current camera on the map.
+    ///   - navigationCamera: The default navigation camera. This sets the initial camera & is also used when the center
+    /// on user button it tapped.
+    ///   - navigationState: The current ferrostar navigation state provided by the Ferrostar core.
+    ///   - minimumSafeAreaInsets: The minimum padding to apply from safe edges. See `complementSafeAreaInsets`.
+    ///   - onTapExit: An optional behavior to run when the ArrivalView exit button is tapped. When nil (default) the
+    /// exit button is hidden.
+    ///   - makeMapContent: Custom maplibre layers to display on the map view.
+    ///   - mapViewModifiers: An optional closure that allows you to apply custom view and map modifiers to the `MapView`. The closure
+    ///     takes the `MapView` instance and provides a Boolean indicating if navigation is active, and returns an `AnyView`. Use this to attach onMapTapGesture and other view modifiers to the underlying MapView and customize when the modifiers are applied using
+    ///       the isNavigating modifier.
+    ///     By default, it returns the unmodified `MapView`.
+    public init(
+        styleURL: URL,
+        camera: Binding<MapViewCamera>,
+        navigationCamera: MapViewCamera = .automotiveNavigation(),
+        locationProviding: LocationProviding?,
+        navigationState: NavigationState?,
+        calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
+        minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
+        showZoom: Bool,
+        onTapExit: (() -> Void)? = nil,
+        @MapViewContentBuilder makeMapContent: @escaping () -> [StyleLayerDefinition] = { [] },
+        mapViewModifiers: @escaping (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T> = { transferView, _ in
+            transferView
+        }
+    ) {
+        self.showZoom = showZoom
+        self.makeViewController = MLNMapViewController.init
+        self.styleURL = styleURL
+        self.navigationState = navigationState
+        self.calculateSpeedLimit = calculateSpeedLimit
+        self.minimumSafeAreaInsets = minimumSafeAreaInsets
+        self.onTapExit = onTapExit
+        self.locationProviding = locationProviding
+        userLayers = makeMapContent
+
+        _camera = camera
+        self.navigationCamera = navigationCamera
+        self.mapViewModifiers = mapViewModifiers
+    }
+}
