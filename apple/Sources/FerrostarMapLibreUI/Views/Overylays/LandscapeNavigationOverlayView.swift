@@ -17,6 +17,7 @@ struct LandscapeNavigationOverlayView: View, CustomizableNavigatingInnerGridView
     var topTrailing: (() -> AnyView)?
     var midLeading: (() -> AnyView)?
     var bottomTrailing: (() -> AnyView)?
+    var bottomLeading: (() -> AnyView)?
 
     var speedLimit: Measurement<UnitSpeed>?
     var showZoom: Bool
@@ -97,6 +98,8 @@ struct LandscapeNavigationOverlayView: View, CustomizableNavigatingInnerGridView
                 midLeading?()
             } bottomTrailing: {
                 bottomTrailing?()
+            } bottomLeading: {
+                bottomLeading?()
             }
         }
     }
