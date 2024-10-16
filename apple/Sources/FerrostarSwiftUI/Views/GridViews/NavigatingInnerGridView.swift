@@ -91,7 +91,7 @@ public struct NavigatingInnerGridView: View, CustomizableNavigatingInnerGridView
                                 .frame(width: 18, height: 18)
                         }
                         .shadow(radius: 8)
-                    } else {
+                    } else if bottomLeading == nil {
                         Spacer()
                     }
                 }
