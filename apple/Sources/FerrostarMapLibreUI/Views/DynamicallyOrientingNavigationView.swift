@@ -7,24 +7,27 @@ import MapLibreSwiftUI
 import SwiftUI
 
 /// A navigation view that dynamically switches between portrait and landscape orientations.
-public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingInnerGridView {
+public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: View, CustomizableNavigatingInnerGridView {
     @Environment(\.navigationFormatterCollection) var formatterCollection: any FormatterCollection
 
     @State private var orientation = UIDevice.current.orientation
 
     let styleURL: URL
     @Binding var camera: MapViewCamera
+    let showZoom: Bool
     let navigationCamera: MapViewCamera
+    let makeViewController: () -> T
 
     private var navigationState: NavigationState?
     private let userLayers: () -> [StyleLayerDefinition]
     
-    private let mapViewModifiers: (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController>
+    private let mapViewModifiers: (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T>
 
     public var topCenter: (() -> AnyView)?
     public var topTrailing: (() -> AnyView)?
     public var midLeading: (() -> AnyView)?
     public var bottomTrailing: (() -> AnyView)?
+    public var bottomLeading: (() -> AnyView)?
 
     var calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)?
     @State var speedLimit: Measurement<UnitSpeed>?
@@ -52,6 +55,7 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
     ///       the isNavigating modifier.
     ///     By default, it returns the unmodified `MapView`.
     public init(
+        makeViewController: @autoclosure @escaping () -> T,
         styleURL: URL,
         camera: Binding<MapViewCamera>,
         navigationCamera: MapViewCamera = .automotiveNavigation(),
@@ -59,12 +63,15 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
         navigationState: NavigationState?,
         calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
+        showZoom: Bool,
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: @escaping () -> [StyleLayerDefinition] = { [] },
-        mapViewModifiers: @escaping (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController> = { transferView, _ in
+        mapViewModifiers: @escaping (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T> = { transferView, _ in
             transferView
         }
     ) {
+        self.showZoom = showZoom
+        self.makeViewController = makeViewController
         self.styleURL = styleURL
         self.navigationState = navigationState
         self.calculateSpeedLimit = calculateSpeedLimit
@@ -82,6 +89,7 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
         GeometryReader { geometry in
             ZStack {
                 NavigationMapView(
+                    makeViewController: makeViewController(),
                     styleURL: styleURL,
                     camera: $camera,
                     navigationState: navigationState,
@@ -105,7 +113,7 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
                     LandscapeNavigationOverlayView(
                         navigationState: navigationState,
                         speedLimit: speedLimit,
-                        showZoom: true,
+                        showZoom: showZoom,
                         onZoomIn: { camera.incrementZoom(by: 1) },
                         onZoomOut: { camera.incrementZoom(by: -1) },
                         showCentering: !camera.isTrackingUserLocationWithCourse,
@@ -120,12 +128,14 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
                         midLeading?()
                     } bottomTrailing: {
                         bottomTrailing?()
+                    } bottomLeading: {
+                        bottomLeading?()
                     }.complementSafeAreaInsets(parentGeometry: geometry, minimumInsets: minimumSafeAreaInsets)
                 default:
                     PortraitNavigationOverlayView(
                         navigationState: navigationState,
                         speedLimit: speedLimit,
-                        showZoom: true,
+                        showZoom: showZoom,
                         onZoomIn: { camera.incrementZoom(by: 1) },
                         onZoomOut: { camera.incrementZoom(by: -1) },
                         showCentering: !camera.isTrackingUserLocationWithCourse,
@@ -140,6 +150,8 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
                         midLeading?()
                     } bottomTrailing: {
                         bottomTrailing?()
+                    } bottomLeading: {
+                        bottomLeading?()
                     }.complementSafeAreaInsets(parentGeometry: geometry, minimumInsets: minimumSafeAreaInsets)
                 }
             }
@@ -170,7 +182,8 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
     return DynamicallyOrientingNavigationView(
         styleURL: URL(string: "https://demotiles.maplibre.org/style.json")!,
         camera: .constant(.center(userLocation.clLocation.coordinate, zoom: 12)),
-        navigationState: state
+        navigationState: state,
+        showZoom: true
     )
     .navigationFormatterCollection(FoundationFormatterCollection(distanceFormatter: formatter))
 }
@@ -189,7 +202,37 @@ public struct DynamicallyOrientingNavigationView: View, CustomizableNavigatingIn
     return DynamicallyOrientingNavigationView(
         styleURL: URL(string: "https://demotiles.maplibre.org/style.json")!,
         camera: .constant(.center(userLocation.clLocation.coordinate, zoom: 12)),
-        navigationState: state
+        navigationState: state,
+        showZoom: true
     )
     .navigationFormatterCollection(FoundationFormatterCollection(distanceFormatter: formatter))
+}
+
+extension DynamicallyOrientingNavigationView where T == MLNMapViewController {
+    public init(
+        styleURL: URL,
+        camera: Binding<MapViewCamera>,
+        navigationCamera: MapViewCamera = .automotiveNavigation(),
+        navigationState: NavigationState?,
+        minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
+        showZoom: Bool,
+        onTapExit: (() -> Void)? = nil,
+        @MapViewContentBuilder makeMapContent: @escaping () -> [StyleLayerDefinition] = { [] },
+        mapViewModifiers: @escaping (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T> = { transferView, _ in
+            transferView
+        }
+    ) {
+        self.makeViewController = MLNMapViewController.init
+        self.styleURL = styleURL
+        self.navigationState = navigationState
+        self.minimumSafeAreaInsets = minimumSafeAreaInsets
+        self.showZoom = showZoom
+        self.onTapExit = onTapExit
+
+        userLayers = makeMapContent
+
+        _camera = camera
+        self.navigationCamera = navigationCamera
+        self.mapViewModifiers = mapViewModifiers
+    }
 }

@@ -21,6 +21,7 @@ public struct NavigatingInnerGridView: View, CustomizableNavigatingInnerGridView
     public var topTrailing: (() -> AnyView)?
     public var midLeading: (() -> AnyView)?
     public var bottomTrailing: (() -> AnyView)?
+    public var bottomLeading: (() -> AnyView)?
 
     /// The default navigation inner grid view.
     ///
@@ -80,16 +81,19 @@ public struct NavigatingInnerGridView: View, CustomizableNavigatingInnerGridView
                 }
             },
             bottomLeading: {
-                if showCentering {
-                    NavigationUIButton(action: onCenter) {
-                        Image(systemName: "location.north.fill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 18, height: 18)
+                VStack {
+                    bottomLeading?()
+                    if showCentering {
+                        NavigationUIButton(action: onCenter) {
+                            Image(systemName: "location.north.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 18, height: 18)
+                        }
+                        .shadow(radius: 8)
+                    } else if bottomLeading == nil {
+                        Spacer()
                     }
-                    .shadow(radius: 8)
-                } else {
-                    Spacer()
                 }
             },
             bottomCenter: {

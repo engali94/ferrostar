@@ -8,9 +8,10 @@ import SwiftUI
 
 /// A landscape orientation navigation view that includes the InstructionsView and ArrivalView on the
 /// leading half of the screen.
-public struct LandscapeNavigationView: View, CustomizableNavigatingInnerGridView {
+public struct LandscapeNavigationView<T: MapViewHostViewController>: View, CustomizableNavigatingInnerGridView {
     @Environment(\.navigationFormatterCollection) var formatterCollection: any FormatterCollection
 
+    let makeViewController: () -> T
     let styleURL: URL
     @Binding var camera: MapViewCamera
     let navigationCamera: MapViewCamera
@@ -22,6 +23,7 @@ public struct LandscapeNavigationView: View, CustomizableNavigatingInnerGridView
     public var topTrailing: (() -> AnyView)?
     public var midLeading: (() -> AnyView)?
     public var bottomTrailing: (() -> AnyView)?
+    public var bottomLeading: (() -> AnyView)?
 
     var calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)?
     @State var speedLimit: Measurement<UnitSpeed>?
@@ -46,6 +48,7 @@ public struct LandscapeNavigationView: View, CustomizableNavigatingInnerGridView
     /// exit button is hidden.
     ///   - makeMapContent: Custom maplibre symbols to display on the map view.
     public init(
+        makeViewController: @autoclosure @escaping () -> T,
         styleURL: URL,
         camera: Binding<MapViewCamera>,
         navigationCamera: MapViewCamera = .automotiveNavigation(),
@@ -56,6 +59,7 @@ public struct LandscapeNavigationView: View, CustomizableNavigatingInnerGridView
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] }
     ) {
+        self.makeViewController = makeViewController
         self.styleURL = styleURL
         self.navigationState = navigationState
         self.calculateSpeedLimit = calculateSpeedLimit
@@ -71,6 +75,7 @@ public struct LandscapeNavigationView: View, CustomizableNavigatingInnerGridView
         GeometryReader { geometry in
             ZStack {
                 NavigationMapView(
+                    makeViewController: makeViewController(),
                     styleURL: styleURL,
                     camera: $camera,
                     navigationState: navigationState,
@@ -101,12 +106,50 @@ public struct LandscapeNavigationView: View, CustomizableNavigatingInnerGridView
                     midLeading?()
                 } bottomTrailing: {
                     bottomTrailing?()
+                } bottomLeading: {
+                    bottomLeading?()
                 }.complementSafeAreaInsets(parentGeometry: geometry, minimumInsets: minimumSafeAreaInsets)
             }
         }
         .onChange(of: navigationState) { value in
             speedLimit = calculateSpeedLimit?(value)
         }
+    }
+}
+
+extension LandscapeNavigationView where T == MLNMapViewController {
+    /// Create a landscape navigation view. This view is optimized for display on a landscape screen where the
+    /// instructions are on the leading half of the screen
+    /// and the user puck and route are on the trailing half of the screen.
+    ///
+    /// - Parameters:
+    ///   - styleURL: The map's style url.
+    ///   - camera: The camera binding that represents the current camera on the map.
+    ///   - navigationCamera: The default navigation camera. This sets the initial camera & is also used when the center
+    /// on user button it tapped.
+    ///   - navigationState: The current ferrostar navigation state provided by the Ferrostar core.
+    ///   - minimumSafeAreaInsets: The minimum padding to apply from safe edges. See `complementSafeAreaInsets`.
+    ///   - onTapExit: An optional behavior to run when the ArrivalView exit button is tapped. When nil (default) the
+    /// exit button is hidden.
+    ///   - makeMapContent: Custom maplibre symbols to display on the map view.
+    public init(
+        styleURL: URL,
+        camera: Binding<MapViewCamera>,
+        navigationCamera: MapViewCamera = .automotiveNavigation(),
+        navigationState: NavigationState?,
+        minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
+        onTapExit: (() -> Void)? = nil,
+        @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] }
+    ) {
+        self.makeViewController = MLNMapViewController.init
+        self.styleURL = styleURL
+        self.navigationState = navigationState
+        self.minimumSafeAreaInsets = minimumSafeAreaInsets
+        self.onTapExit = onTapExit
+
+        userLayers = makeMapContent()
+        _camera = camera
+        self.navigationCamera = navigationCamera
     }
 }
 

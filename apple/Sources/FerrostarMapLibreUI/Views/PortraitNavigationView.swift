@@ -20,6 +20,7 @@ public struct PortraitNavigationView: View, CustomizableNavigatingInnerGridView 
     public var topTrailing: (() -> AnyView)?
     public var midLeading: (() -> AnyView)?
     public var bottomTrailing: (() -> AnyView)?
+    public var bottomLeading: (() -> AnyView)?
 
     public var minimumSafeAreaInsets: EdgeInsets
 
@@ -104,6 +105,8 @@ public struct PortraitNavigationView: View, CustomizableNavigatingInnerGridView 
                     midLeading?()
                 } bottomTrailing: {
                     bottomTrailing?()
+                } bottomLeading: {
+                    bottomLeading?()
                 }.complementSafeAreaInsets(parentGeometry: geometry, minimumInsets: minimumSafeAreaInsets)
             }
         }
