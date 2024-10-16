@@ -36,6 +36,7 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
 
     public var minimumSafeAreaInsets: EdgeInsets
 
+    private var locationProviding: LocationProviding?
     /// Create a dynamically orienting navigation view. This view automatically arranges child views for both portait
     /// and landscape orientations.
     ///
@@ -57,8 +58,8 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
         makeViewController: @autoclosure @escaping () -> T,
         styleURL: URL,
         camera: Binding<MapViewCamera>,
-        navigationCamera: MapViewCamera = .automotiveNavigation()
-        ,
+        navigationCamera: MapViewCamera = .automotiveNavigation(),
+        locationProviding: LocationProviding?,
         navigationState: NavigationState?,
         calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
@@ -76,7 +77,7 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
         self.calculateSpeedLimit = calculateSpeedLimit
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
         self.onTapExit = onTapExit
-
+        self.locationProviding = locationProviding
         userLayers = makeMapContent
 
         _camera = camera
@@ -92,6 +93,7 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
                     styleURL: styleURL,
                     camera: $camera,
                     navigationState: navigationState,
+                    locationProvider: locationProviding,
                     onStyleLoaded: { _ in
                         if navigationState?.isNavigating == true {
                             camera = navigationCamera

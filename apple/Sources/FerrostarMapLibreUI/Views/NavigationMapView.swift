@@ -19,22 +19,22 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
     var onStyleLoaded: (MLNStyle) -> Void
     let userLayers: [StyleLayerDefinition]
     
-    let mapViewModifiers: (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T>
-
+    let mapViewModifiers: (_ view: MapView<MLNMapViewController>, _ isNavigating: Bool) -> MapView<MLNMapViewController>
+    
     // TODO: Configurable camera and user "puck" rotation modes
-
-    private var navigationState: NavigationState? 
-
-    @State private var locationManager = StaticLocationManager(initialLocation: CLLocation())
-
+    
+    private var navigationState: NavigationState?
+    
+    private var locationManager: LocationManagerProxy?
+    
     // MARK: Camera Settings
-
+    
     @Binding var camera: MapViewCamera
     
     private var effectiveMapViewContentInset: UIEdgeInsets {
         return navigationState?.isNavigating == true ? mapViewContentInset : .zero
     }
-
+    
     /// Initialize a map view tuned for turn by turn navigation.
     ///
     /// - Parameters:
@@ -52,6 +52,7 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
         styleURL: URL,
         camera: Binding<MapViewCamera>,
         navigationState: NavigationState?,
+        locationProvider: LocationProviding?,
         onStyleLoaded: @escaping ((MLNStyle) -> Void),
         @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] },
         mapViewModifiers: @escaping (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T> = { transferView, _ in
@@ -65,8 +66,13 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
         self.onStyleLoaded = onStyleLoaded
         self.userLayers = makeMapContent()
         self.mapViewModifiers = mapViewModifiers
+        if let locationProvider {
+            self.locationManager = LocationManagerProxy(locationProvider: locationProvider)
+        } else {
+            self.locationManager = nil
+        }
     }
-
+    
     @ViewBuilder
     public var body: some View {
         MapView(
@@ -76,20 +82,20 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
             locationManager: locationManager
         ) {
             // TODO: Create logic and style for route previews. Unless ferrostarCore will handle this internally.
-
+            
             if let routePolyline = navigationState?.routePolyline {
                 RouteStyleLayer(polyline: routePolyline,
                                 identifier: "route-polyline",
                                 style: TravelledRouteStyle())
             }
-
+            
             if let remainingRoutePolyline = navigationState?.remainingRoutePolyline {
                 RouteStyleLayer(polyline: remainingRoutePolyline,
                                 identifier: "remaining-route-polyline")
             }
-
+            
             updateCameraIfNeeded()
-
+            
             // Overlay any additional user layers.
             userLayers
         }
@@ -101,15 +107,15 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
         .applyTransform(transform: mapViewModifiers, isNavigating: navigationState?.isNavigating == true)
         .ignoresSafeArea(.all)
     }
-
+    
     private func updateCameraIfNeeded() {
         if case let .navigating(_, snappedUserLocation: userLocation, _, _, _, _, _, _, _) = navigationState?.tripState,
            // There is no reason to push an update if the coordinate and heading are the same.
            // That's all that gets displayed, so it's all that MapLibre should care about.
-           locationManager.lastLocation.coordinate != userLocation.coordinates
-           .clLocationCoordinate2D || locationManager.lastLocation.course != userLocation.clLocation.course
+            locationManager?.lastLocation != userLocation.coordinates
+            .clLocationCoordinate2D
         {
-            locationManager.lastLocation = userLocation.clLocation
+            locationManager?.updateLocation(UserLocation(clLocation: userLocation.clLocation))
         }
     }
 }
@@ -117,26 +123,106 @@ public struct NavigationMapView<T: MapViewHostViewController>: View {
 extension MapView {
     @ViewBuilder
     func applyTransform<Content: View>(
-        transform: (Self, Bool) -> Content, isNavigating: Bool) -> some View {
-        transform(self, isNavigating)
-    }
+        transform: (MapView<MLNMapViewController>, Bool) -> Content, isNavigating: Bool) -> some View {
+            transform(self, isNavigating)
+        }
 }
 
+import FerrostarCoreFFI
+import CoreLocation
+import MapLibre
+import FerrostarCore
+import Combine
 
-#Preview("Navigation Map View") {
-    // TODO: Make map URL configurable but gitignored
-    let state = NavigationState.modifiedPedestrianExample(droppingNWaypoints: 4)
+public typealias UserLocation = FerrostarCoreFFI.UserLocation
 
-    guard case let .navigating(_, snappedUserLocation: userLocation, _, _, _, _, _, _, _) = state.tripState else {
-        return EmptyView()
+public class LocationManagerProxy: NSObject, MLNLocationManager, ObservableObject {
+    public weak var delegate: (any MLNLocationManagerDelegate)?
+    
+    private let locationProvider: LocationProviding
+    private var cancellable: AnyCancellable?
+    
+    public init(locationProvider: LocationProviding) {
+        self.locationProvider = locationProvider
+        super.init()
+        setupLocationUpdates()
     }
-
-    return NavigationMapView(
-        styleURL: URL(string: "https://demotiles.maplibre.org/style.json")!,
-        camera: .constant(.center(userLocation.clLocation.coordinate, zoom: 12)),
-        navigationState: state,
-        onStyleLoaded: { _ in }
-    )
+    
+    private func setupLocationUpdates() {
+        if let simulatedProvider = locationProvider as? SimulatedLocationProvider {
+            cancellable = simulatedProvider.$lastLocation
+                .compactMap { $0 }
+                .sink { [weak self] location in
+                    self?.updateLocation(location)
+                }
+        } else {
+            // Setup for real location provider if needed
+        }
+    }
+    
+    func updateLocation(_ location: UserLocation) {
+        let clLocation = CLLocation(
+            coordinate: location.coordinates.clLocationCoordinate2D,
+            altitude: 0,
+            horizontalAccuracy: location.horizontalAccuracy,
+            verticalAccuracy: -1,
+            course: Double(location.courseOverGround?.degrees ?? 0),
+            speed: location.speed?.value ?? -1,
+            timestamp: location.timestamp
+        )
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.delegate?.locationManager(self, didUpdate: [clLocation])
+        }
+    }
+    
+    public var lastLocation: CLLocationCoordinate2D? {
+        locationProvider.lastLocation?.coordinates.clLocationCoordinate2D
+    }
+    
+    public var lastCLHeading: CLHeading? {
+        guard let heading = locationProvider.lastHeading else { return nil }
+        let clHeading = CLHeading()
+        clHeading.setValue(Double(heading.trueHeading), forKey: "trueHeading")
+        clHeading.setValue(Double(heading.accuracy), forKey: "headingAccuracy")
+        clHeading.setValue(heading.timestamp, forKey: "timestamp")
+        return clHeading
+    }
+    
+    public func requestAlwaysAuthorization() {
+        // No-op, handled by LocationProviding implementation
+    }
+    
+    public func requestWhenInUseAuthorization() {
+        // No-op, handled by LocationProviding implementation
+    }
+    
+    public func dismissHeadingCalibrationDisplay() {
+        // No-op
+    }
+    
+    public func startUpdatingLocation() {
+        locationProvider.startUpdating()
+    }
+    
+    public func stopUpdatingLocation() {
+        locationProvider.stopUpdating()
+    }
+    
+    public var headingOrientation: CLDeviceOrientation = .portrait
+    
+    public func startUpdatingHeading() {
+        // Handled by startUpdating() in LocationProviding
+    }
+    
+    public func stopUpdatingHeading() {
+        // Handled by stopUpdating() in LocationProviding
+    }
+    
+    public var authorizationStatus: CLAuthorizationStatus {
+        locationProvider.authorizationStatus
+    }
 }
 
 extension NavigationMapView where T == MLNMapViewController {
