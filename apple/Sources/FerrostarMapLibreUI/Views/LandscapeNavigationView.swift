@@ -29,7 +29,8 @@ public struct LandscapeNavigationView: View, CustomizableNavigatingInnerGridView
     var onTapExit: (() -> Void)?
 
     public var minimumSafeAreaInsets: EdgeInsets
-
+    private var locationProviding: LocationProviding?
+    
     /// Create a landscape navigation view. This view is optimized for display on a landscape screen where the
     /// instructions are on the leading half of the screen
     /// and the user puck and route are on the trailing half of the screen.
@@ -49,6 +50,7 @@ public struct LandscapeNavigationView: View, CustomizableNavigatingInnerGridView
         camera: Binding<MapViewCamera>,
         navigationCamera: MapViewCamera = .automotiveNavigation(),
         navigationState: NavigationState?,
+        locationProviding: LocationProviding?,
         calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
         onTapExit: (() -> Void)? = nil,
@@ -72,6 +74,7 @@ public struct LandscapeNavigationView: View, CustomizableNavigatingInnerGridView
                     styleURL: styleURL,
                     camera: $camera,
                     navigationState: navigationState,
+                    locationProvider: locationProviding,
                     onStyleLoaded: { _ in
                         camera = navigationCamera
                     }

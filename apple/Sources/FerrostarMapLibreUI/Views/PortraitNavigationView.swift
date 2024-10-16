@@ -28,7 +28,9 @@ public struct PortraitNavigationView: View, CustomizableNavigatingInnerGridView 
 
     var calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)?
     @State var speedLimit: Measurement<UnitSpeed>?
-
+    
+    private var locationProviding: LocationProviding?
+    
     var onTapExit: (() -> Void)?
 
     /// Create a portrait navigation view. This view is optimized for display on a portrait screen where the
@@ -50,6 +52,7 @@ public struct PortraitNavigationView: View, CustomizableNavigatingInnerGridView 
         camera: Binding<MapViewCamera>,
         navigationCamera: MapViewCamera = .automotiveNavigation(),
         navigationState: NavigationState?,
+        locationProviding: LocationProviding?,
         calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
         onTapExit: (() -> Void)? = nil,
@@ -60,7 +63,7 @@ public struct PortraitNavigationView: View, CustomizableNavigatingInnerGridView 
         self.calculateSpeedLimit = calculateSpeedLimit
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
         self.onTapExit = onTapExit
-
+        self.locationProviding = locationProviding
         userLayers = makeMapContent()
 
         _camera = camera
@@ -74,6 +77,7 @@ public struct PortraitNavigationView: View, CustomizableNavigatingInnerGridView 
                     styleURL: styleURL,
                     camera: $camera,
                     navigationState: navigationState,
+                    locationProvider: locationProviding,
                     onStyleLoaded: { _ in
                         camera = navigationCamera
                     }
