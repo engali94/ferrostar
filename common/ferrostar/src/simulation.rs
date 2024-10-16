@@ -203,15 +203,15 @@ pub fn advance_location_simulation(state: &LocationSimulationState) -> LocationS
 
         let next_location = UserLocation {
             coordinates: *next_coordinate,
-            horizontal_accuracy: 0.0,
+            horizontal_accuracy: 10.0,
             course_over_ground: Some(CourseOverGround {
                 degrees: bearing,
-                accuracy: None,
+                accuracy: Some(5),
             }),
             timestamp: SystemTime::now(),
             speed: None,
         };
-
+        
         LocationSimulationState {
             current_location: next_location,
             remaining_locations: Vec::from(rest),
