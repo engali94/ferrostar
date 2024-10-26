@@ -188,30 +188,40 @@ public class SimulatedLocationProvider: LocationProviding, ObservableObject {
 
     private func updateLocation() async throws {
         while isUpdating {
-            // Exit if the task has been cancelled.
             try Task.checkCancellation()
 
             guard let initialState = simulationState else {
                 return
             }
 
+            // Store the previous location
+            let previousLocation = initialState.currentLocation
+            let previousTime = previousLocation.timestamp
+            
             try await Task.sleep(nanoseconds: NSEC_PER_SEC / warpFactor)
-
-            // Check cancellation before updating after wait.
             try Task.checkCancellation()
 
-            // Calculate the new state.
-            let updatedState = advanceLocationSimulation(state: initialState)
-
-            // Stop if the route has been fully simulated (no state change).
+            var updatedState = advanceLocationSimulation(state: initialState)
+            
             if initialState == updatedState {
                 stopUpdating()
                 return
             }
 
-            // Bump the last location.
+            // Calculate speed
+            let currentLocation = updatedState.currentLocation
+            let timeElapsed = currentLocation.timestamp.timeIntervalSince(previousTime)
+            
+            // Calculate distance between coordinates
+            let distance = currentLocation.clLocation.distance(from: previousLocation.clLocation)
+            
+            // Calculate speed in meters per second
+            let speedValue = distance / timeElapsed
+
+            updatedState.currentLocation.speed = Speed(value: speedValue, accuracy: 1)
             lastLocation = updatedState.currentLocation
             simulationState = updatedState
         }
     }
 }
+
