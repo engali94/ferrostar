@@ -8,7 +8,7 @@ import SwiftUI
 
 /// A landscape orientation navigation view that includes the InstructionsView and ArrivalView on the
 /// leading half of the screen.
-public struct LandscapeNavigationView<T: MapViewHostViewController>: View, CustomizableNavigatingInnerGridView {
+public struct LandscapeNavigationView<T: MapViewHostViewController>: View, CustomizableNavigatingInnerGridView, SpeedLimitViewHost {
     @Environment(\.navigationFormatterCollection) var formatterCollection: any FormatterCollection
 
     let makeViewController: () -> T
@@ -19,6 +19,9 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
     private var navigationState: NavigationState?
     private let userLayers: [StyleLayerDefinition]
 
+    public var speedLimit: Measurement<UnitSpeed>?
+    public var speedLimitStyle: SpeedLimitView.SignageStyle?
+
     public var topCenter: (() -> AnyView)?
     public var topTrailing: (() -> AnyView)?
     public var midLeading: (() -> AnyView)?
@@ -28,6 +31,8 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
     var calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)?
     @State var speedLimit: Measurement<UnitSpeed>?
 
+    let isMuted: Bool
+    let onTapMute: () -> Void
     var onTapExit: (() -> Void)?
 
     public var minimumSafeAreaInsets: EdgeInsets
@@ -55,7 +60,9 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
         navigationState: NavigationState?,
         locationProviding: LocationProviding?,
         calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
+        isMuted: Bool,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
+        onTapMute: @escaping () -> Void,
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] }
     ) {
@@ -63,7 +70,9 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
         self.styleURL = styleURL
         self.navigationState = navigationState
         self.calculateSpeedLimit = calculateSpeedLimit
+        self.isMuted = isMuted
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
+        self.onTapMute = onTapMute
         self.onTapExit = onTapExit
 
         userLayers = makeMapContent()
@@ -91,6 +100,10 @@ public struct LandscapeNavigationView<T: MapViewHostViewController>: View, Custo
                 LandscapeNavigationOverlayView(
                     navigationState: navigationState,
                     speedLimit: speedLimit,
+                    speedLimitStyle: speedLimitStyle,
+                    isMuted: isMuted,
+                    showMute: true,
+                    onMute: onTapMute,
                     showZoom: true,
                     onZoomIn: { camera.incrementZoom(by: 1) },
                     onZoomOut: { camera.incrementZoom(by: -1) },

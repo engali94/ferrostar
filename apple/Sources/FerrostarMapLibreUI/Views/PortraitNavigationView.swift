@@ -7,7 +7,7 @@ import MapLibreSwiftUI
 import SwiftUI
 
 /// A portrait orientation navigation view that includes the InstructionsView at the top.
-public struct PortraitNavigationView<T: MapViewHostViewController>: View, CustomizableNavigatingInnerGridView {
+public struct PortraitNavigationView<T: MapViewHostViewController>: View, CustomizableNavigatingInnerGridView, SpeedLimitViewHost {
     @Environment(\.navigationFormatterCollection) var formatterCollection: any FormatterCollection
 
     let styleURL: URL
@@ -16,6 +16,9 @@ public struct PortraitNavigationView<T: MapViewHostViewController>: View, Custom
 
     private var navigationState: NavigationState?
     private let userLayers: [StyleLayerDefinition]
+
+    public var speedLimit: Measurement<UnitSpeed>?
+    public var speedLimitStyle: SpeedLimitView.SignageStyle?
 
     public var topCenter: (() -> AnyView)?
     public var topTrailing: (() -> AnyView)?
@@ -33,6 +36,8 @@ public struct PortraitNavigationView<T: MapViewHostViewController>: View, Custom
     
     private var locationProviding: LocationProviding?
     
+    let isMuted: Bool
+    let onTapMute: () -> Void
     var onTapExit: (() -> Void)?
 
     /// Create a portrait navigation view. This view is optimized for display on a portrait screen where the
@@ -43,11 +48,11 @@ public struct PortraitNavigationView<T: MapViewHostViewController>: View, Custom
     ///   - styleURL: The map's style url.
     ///   - camera: The camera binding that represents the current camera on the map.
     ///   - navigationCamera: The default navigation camera. This sets the initial camera & is also used when the center
-    /// on user button it tapped.
+    ///                       on user button it tapped.
     ///   - navigationState: The current ferrostar navigation state provided by the Ferrostar core.
     ///   - minimumSafeAreaInsets: The minimum padding to apply from safe edges. See `complementSafeAreaInsets`.
     ///   - onTapExit: An optional behavior to run when the ArrivalView exit button is tapped. When nil (default) the
-    /// exit button is hidden.
+    ///             exit button is hidden.
     ///   - makeMapContent: Custom maplibre symbols to display on the map view.
     public init(
         makeViewController: @autoclosure @escaping () -> T,
@@ -57,7 +62,9 @@ public struct PortraitNavigationView<T: MapViewHostViewController>: View, Custom
         navigationState: NavigationState?,
         locationProviding: LocationProviding?,
         calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
+        isMuted: Bool,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
+        onTapMute: @escaping () -> Void,
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: () -> [StyleLayerDefinition] = { [] }
     ) {
@@ -65,7 +72,9 @@ public struct PortraitNavigationView<T: MapViewHostViewController>: View, Custom
         self.styleURL = styleURL
         self.navigationState = navigationState
         self.calculateSpeedLimit = calculateSpeedLimit
+        self.isMuted = isMuted
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
+        self.onTapMute = onTapMute
         self.onTapExit = onTapExit
         self.locationProviding = locationProviding
         userLayers = makeMapContent()
@@ -94,6 +103,10 @@ public struct PortraitNavigationView<T: MapViewHostViewController>: View, Custom
                 PortraitNavigationOverlayView(
                     navigationState: navigationState,
                     speedLimit: speedLimit,
+                    speedLimitStyle: speedLimitStyle,
+                    isMuted: isMuted,
+                    showMute: true,
+                    onMute: onTapMute,
                     showZoom: true,
                     onZoomIn: { camera.incrementZoom(by: 1) },
                     onZoomOut: { camera.incrementZoom(by: -1) },

@@ -7,7 +7,7 @@ import MapLibreSwiftUI
 import SwiftUI
 
 /// A navigation view that dynamically switches between portrait and landscape orientations.
-public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: View, CustomizableNavigatingInnerGridView {
+public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: View, CustomizableNavigatingInnerGridView, SpeedLimitViewHost {
     @Environment(\.navigationFormatterCollection) var formatterCollection: any FormatterCollection
 
     @State private var orientation = UIDevice.current.orientation
@@ -20,6 +20,9 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
 
     private var navigationState: NavigationState?
     private let userLayers: () -> [StyleLayerDefinition]
+
+    public var speedLimit: Measurement<UnitSpeed>?
+    public var speedLimitStyle: SpeedLimitView.SignageStyle?
     
     private let mapViewModifiers: (_ view: MapView<T>, _ isNavigating: Bool) -> MapView<T>
 
@@ -32,6 +35,8 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
     var calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)?
     @State var speedLimit: Measurement<UnitSpeed>?
 
+    let isMuted: Bool
+    let onTapMute: () -> Void
     var onTapExit: (() -> Void)?
 
     public var minimumSafeAreaInsets: EdgeInsets
@@ -44,11 +49,11 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
     ///   - styleURL: The map's style url.
     ///   - camera: The camera binding that represents the current camera on the map.
     ///   - navigationCamera: The default navigation camera. This sets the initial camera & is also used when the center
-    /// on user button it tapped.
+    ///         on user button it tapped.
     ///   - navigationState: The current ferrostar navigation state provided by the Ferrostar core.
     ///   - minimumSafeAreaInsets: The minimum padding to apply from safe edges. See `complementSafeAreaInsets`.
     ///   - onTapExit: An optional behavior to run when the ArrivalView exit button is tapped. When nil (default) the
-    /// exit button is hidden.
+    ///         exit button is hidden.
     ///   - makeMapContent: Custom maplibre layers to display on the map view.
     ///   - mapViewModifiers: An optional closure that allows you to apply custom view and map modifiers to the `MapView`. The closure
     ///     takes the `MapView` instance and provides a Boolean indicating if navigation is active, and returns an `AnyView`. Use this to attach onMapTapGesture and other view modifiers to the underlying MapView and customize when the modifiers are applied using
@@ -61,8 +66,10 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
         navigationCamera: MapViewCamera = .automotiveNavigation(),
         locationProviding: LocationProviding?,
         navigationState: NavigationState?,
+        isMuted: Bool,
         calculateSpeedLimit: ((NavigationState?) -> Measurement<UnitSpeed>?)? = nil,
         minimumSafeAreaInsets: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16),
+        onTapMute: @escaping () -> Void,
         showZoom: Bool,
         onTapExit: (() -> Void)? = nil,
         @MapViewContentBuilder makeMapContent: @escaping () -> [StyleLayerDefinition] = { [] },
@@ -74,8 +81,10 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
         self.makeViewController = makeViewController
         self.styleURL = styleURL
         self.navigationState = navigationState
+        self.isMuted = isMuted
         self.calculateSpeedLimit = calculateSpeedLimit
         self.minimumSafeAreaInsets = minimumSafeAreaInsets
+        self.onTapMute = onTapMute
         self.onTapExit = onTapExit
         self.locationProviding = locationProviding
         userLayers = makeMapContent
@@ -113,7 +122,11 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
                     LandscapeNavigationOverlayView(
                         navigationState: navigationState,
                         speedLimit: speedLimit,
-                        showZoom: showZoom,
+                        speedLimitStyle: speedLimitStyle,
+                        isMuted: isMuted,
+                        showMute: navigationState?.isNavigating == true,
+                        onMute: onTapMute,
+                        showZoom: true,
                         onZoomIn: { camera.incrementZoom(by: 1) },
                         onZoomOut: { camera.incrementZoom(by: -1) },
                         showCentering: !camera.isTrackingUserLocationWithCourse,
@@ -135,7 +148,11 @@ public struct DynamicallyOrientingNavigationView<T: MapViewHostViewController>: 
                     PortraitNavigationOverlayView(
                         navigationState: navigationState,
                         speedLimit: speedLimit,
-                        showZoom: showZoom,
+                        speedLimitStyle: speedLimitStyle,
+                        isMuted: isMuted,
+                        showMute: navigationState?.isNavigating == true,
+                        onMute: onTapMute,
+                        showZoom: true,
                         onZoomIn: { camera.incrementZoom(by: 1) },
                         onZoomOut: { camera.incrementZoom(by: -1) },
                         showCentering: !camera.isTrackingUserLocationWithCourse,

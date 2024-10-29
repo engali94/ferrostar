@@ -1,5 +1,6 @@
 import SwiftUI
 
+// TODO: Extend this with the more mundane visibility properties too (ex: show/hide controls)
 public protocol CustomizableNavigatingInnerGridView where Self: View {
     var topCenter: (() -> AnyView)? { get set }
     var topTrailing: (() -> AnyView)? { get set }
@@ -23,7 +24,7 @@ public extension CustomizableNavigatingInnerGridView {
         @ViewBuilder midLeading: @escaping () -> some View = { Spacer() },
         @ViewBuilder bottomTrailing: @escaping () -> some View = { Spacer() },
         @ViewBuilder bottomLeading: @escaping () -> some View = { Spacer() }
-    ) -> some View {
+    ) -> Self {
         var newSelf = self
         newSelf.topCenter = { AnyView(topCenter()) }
         newSelf.topTrailing = { AnyView(topTrailing()) }
