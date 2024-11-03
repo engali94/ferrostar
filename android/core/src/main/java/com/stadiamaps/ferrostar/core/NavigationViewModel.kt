@@ -3,8 +3,10 @@ package com.stadiamaps.ferrostar.core
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.stadiamaps.ferrostar.core.extensions.currentRoadName
 import com.stadiamaps.ferrostar.core.extensions.deviation
 import com.stadiamaps.ferrostar.core.extensions.progress
+import com.stadiamaps.ferrostar.core.extensions.remainingSteps
 import com.stadiamaps.ferrostar.core.extensions.visualInstruction
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import uniffi.ferrostar.GeographicCoordinate
 import uniffi.ferrostar.RouteDeviation
+import uniffi.ferrostar.RouteStep
 import uniffi.ferrostar.SpokenInstruction
 import uniffi.ferrostar.TripProgress
 import uniffi.ferrostar.TripState
@@ -46,7 +49,11 @@ data class NavigationUiState(
     /** Describes whether the user is believed to be off the correct route. */
     val routeDeviation: RouteDeviation?,
     /** If true, spoken instructions will not be synthesized. */
-    val isMuted: Boolean?
+    val isMuted: Boolean?,
+    /** The name of the road which the current route step is traversing. */
+    val currentStepRoadName: String?,
+    /** The remaining steps in the trip (including the current step). */
+    val remainingSteps: List<RouteStep>?
 ) {
   companion object {
     fun fromFerrostar(
@@ -66,7 +73,9 @@ data class NavigationUiState(
             progress = coreState.tripState.progress(),
             isCalculatingNewRoute = coreState.isCalculatingNewRoute,
             routeDeviation = coreState.tripState.deviation(),
-            isMuted = isMuted)
+            isMuted = isMuted,
+            currentStepRoadName = coreState.tripState.currentRoadName(),
+            remainingSteps = coreState.tripState.remainingSteps())
   }
 }
 
@@ -128,6 +137,8 @@ class DefaultNavigationViewModel(
     spokenInstructionObserver.isMuted = !spokenInstructionObserver.isMuted
   }
 
+  // TODO: We can add a hook here to override the current road name.
+  // Eventually someone will probably want local map matching, vector tile inspection.
   private fun uiState(
       coreState: NavigationState,
       isMuted: Boolean?,

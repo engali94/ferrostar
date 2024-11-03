@@ -17,7 +17,7 @@ if useLocalFramework {
     )
 } else {
     let releaseTag = "0.20.0"
-    let releaseChecksum = "b3565c57b70ac72426e10e7d3c3020900c07548d0eede8200ef4d07edb617a22"
+    let releaseChecksum = "7d748524c29ace95db76b03f536d4112b31950dfbeeaec89ed4a4f3e38d83adb"
     binaryTarget = .binaryTarget(
         name: "FerrostarCoreRS",
         url:
@@ -39,7 +39,7 @@ let package = Package(
     name: "FerrostarCore",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v15),
+        .iOS(.v16),
     ],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
